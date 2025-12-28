@@ -1,8 +1,9 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"proj/handlers"
+	"proj/middleware"
+	"github.com/gin-gonic/gin"
 )
 
 func Register(r *gin.Engine) {

@@ -1,0 +1,25 @@
+package middleware
+
+import (
+	"log"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+func Logger() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		method := c.Request.Method
+
+		log.Printf("Incoming Request: %s %s", method, path)
+
+		c.Next()
+
+		duration := time.Since(start)
+		statusCode := c.Writer.Status()
+
+		log.Printf("[%s] %s - %d - %v", method, path, statusCode, duration)
+	}
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"proj/config"
+	"proj/middleware"
 	"proj/models"
 	"proj/routes"
 )
@@ -15,6 +16,11 @@ func main(){
 	config.DB.AutoMigrate(&models.User{})
 
 	r := gin.Default()
+	
+
+	r.Use(middleware.CORS())      
+	r.Use(middleware.Logger())    
+	
 
 	routes.Register(r)
 
