@@ -77,37 +77,11 @@ docker-compose down
 ### Users
 - `GET /api/users` - Get all users
 
-### Posts
-- `POST /api/posts` - Create a post
-- `GET /api/posts` - Get all posts
-- `GET /api/posts/:id` - Get a post by ID
-- `PUT /api/posts/:id` - Update a post
-- `DELETE /api/posts/:id` - Delete a post
-
 ## Example Requests
 
-### Create a Post
+### Get All Users
 ```bash
-curl -X POST http://localhost:8080/api/posts \
-  -H "Content-Type: application/json" \
-  -d '{"title":"My First Post","content":"Hello World","user_id":1}'
-```
-
-### Get All Posts
-```bash
-curl http://localhost:8080/api/posts
-```
-
-### Update a Post
-```bash
-curl -X PUT http://localhost:8080/api/posts/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Updated Title","content":"Updated content"}'
-```
-
-### Delete a Post
-```bash
-curl -X DELETE http://localhost:8080/api/posts/1
+curl http://localhost:8080/api/users
 ```
 
 ## Adding New Models
@@ -134,15 +108,6 @@ config.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.Product{})
 ### User
 - `id` - Primary key (auto-generated)
 - `name` - User name
-- `created_at` - Timestamp
-- `updated_at` - Timestamp
-- `deleted_at` - Soft delete timestamp
-
-### Post
-- `id` - Primary key (auto-generated)
-- `title` - Post title
-- `content` - Post content
-- `user_id` - Foreign key to User
 - `created_at` - Timestamp
 - `updated_at` - Timestamp
 - `deleted_at` - Soft delete timestamp
