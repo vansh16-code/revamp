@@ -4,5 +4,8 @@ import "gorm.io/gorm"
 
 type User struct {
 	gorm.Model
-	Name string `json:"name" gorm:"not null"`
+	Name     string `json:"name" gorm:"not null"`
+	Email    string `json:"email" gorm:"unique;not null"`
+	Password string `json:"-" gorm:"not null"` // - ensures password field is excluded from json
+	Role     string `json:"role" gorm:"default:'user'"`
 }
