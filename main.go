@@ -13,7 +13,12 @@ func main(){
 	config.ConnectDB()
 	
 
-	config.DB.AutoMigrate(&models.User{})
+	config.DB.AutoMigrate(
+		&models.User{},
+		&models.Vehicle{},
+		&models.Availability{},
+		&models.Booking{},
+	)
 
 	r := gin.Default()
 	
