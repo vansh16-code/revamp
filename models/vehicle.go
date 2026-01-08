@@ -13,7 +13,7 @@ type Vehicle struct {
 	
 	VehicleType   string `json:"vehicle_type"`
 	Brand         string `json:"brand"`
-	Model         string `json:"model"`
+	VehicleModel  string `json:"vehicle_model"`
 	Year          int    `json:"year"`
 	Color         string `json:"color"`
 	VehicleNumber string `json:"vehicle_number" gorm:"unique;not null"`
