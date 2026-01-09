@@ -5,14 +5,22 @@ import (
 	"proj/auth"
 	"proj/config"
 	"proj/models"
+	"proj/utils"
+
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type RegisterRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+	Name       string `json:"name" binding:"required"`
+	Email      string `json:"email" binding:"required,email"`
+	Password   string `json:"password" binding:"required,min=6"`
+	Phone      string `json:"phone" binding:"required"`
+	StudentID  string `json:"student_id" binding:"required"`
+	Course     string `json:"course" binding:"required"`
+	Department string `json:"department" binding:"required"`
+	Age        int    `json:"age" binding:"required,min=18"`
+	Gender     string `json:"gender"`
 }
 
 type LoginRequest struct {
@@ -33,11 +41,29 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	encryptedPhone, err := utils.EncryptString(req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt phone"})
+		return
+	}
+
+	encryptedStudentID, err := utils.EncryptString(req.StudentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt student ID"})
+		return
+	}
+
 	user := models.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: string(hashedPassword),
-		Role:     "user",
+		Name:       req.Name,
+		Email:      req.Email,
+		Password:   string(hashedPassword),
+		Phone:      encryptedPhone,
+		StudentID:  encryptedStudentID,
+		Course:     req.Course,
+		Department: req.Department,
+		Age:        req.Age,
+		Gender:     req.Gender,
+		Role:       "user",
 	}
 
 	if err := config.DB.Create(&user).Error; err != nil {
