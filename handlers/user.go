@@ -5,6 +5,8 @@ import (
 	"proj/auth"
 	"proj/config"
 	"proj/models"
+	"proj/utils"
+
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -39,12 +41,24 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	encryptedPhone, err := utils.EncryptString(req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt phone"})
+		return
+	}
+
+	encryptedStudentID, err := utils.EncryptString(req.StudentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt student ID"})
+		return
+	}
+
 	user := models.User{
 		Name:       req.Name,
 		Email:      req.Email,
 		Password:   string(hashedPassword),
-		Phone:      req.Phone,
-		StudentID:  req.StudentID,
+		Phone:      encryptedPhone,
+		StudentID:  encryptedStudentID,
 		Course:     req.Course,
 		Department: req.Department,
 		Age:        req.Age,

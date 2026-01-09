@@ -17,11 +17,16 @@ type Booking struct {
 	
 	StartTime     time.Time `json:"start_time"`
 	EndTime       time.Time `json:"end_time"`
-	Duration      int       `json:"duration"`
+	DurationHours int       `json:"duration_hours"`
 	
-	PricePerHour  float64 `json:"price_per_hour"`
-	TotalPrice    float64 `json:"total_price"`
-	SecurityDeposit float64 `json:"security_deposit"`
+	PricingModel  string `json:"pricing_model" gorm:"default:'distance'"` 
+	
+	PricePerKm      int64 `json:"price_per_km"`
+	PricePerHour    int64 `json:"price_per_hour"`
+	BasePrice       int64 `json:"base_price"`
+	EstimatedPrice  int64 `json:"estimated_price"`
+	FinalPrice      int64 `json:"final_price"`
+	SecurityDeposit int64 `json:"security_deposit"`
 	
 	PickupLocation  string    `json:"pickup_location"`
 	ReturnLocation  string    `json:"return_location"`
@@ -33,15 +38,23 @@ type Booking struct {
 	PickupOTP     string `json:"pickup_otp"`
 	ReturnOTP     string `json:"return_otp"`
 	
-	FuelLevelStart   int    `json:"fuel_level_start"`
-	FuelLevelEnd     int    `json:"fuel_level_end"`
-	OdometerStart    int    `json:"odometer_start"`
-	OdometerEnd      int    `json:"odometer_end"`
-	DamageReportStart string `json:"damage_report_start" gorm:"type:text"`
-	DamageReportEnd   string `json:"damage_report_end" gorm:"type:text"`
+	OdometerStartKm       int     `json:"odometer_start_km"`
+	OdometerEndKm         int     `json:"odometer_end_km"`
+	ActualDistanceKm      float64 `json:"actual_distance_km"`
+	
+	FuelLevelStartPercent int     `json:"fuel_level_start_percent"`
+	FuelLevelEndPercent   int     `json:"fuel_level_end_percent"`
+	FuelConsumedLiters    float64 `json:"fuel_consumed_liters"`
+	FuelCostCharged       int64   `json:"fuel_cost_charged"`
+	
+	DamageReportStart     string `json:"damage_report_start" gorm:"type:text"`
+	DamageReportEnd       string `json:"damage_report_end" gorm:"type:text"`
 	
 	PickupImages  string `json:"pickup_images" gorm:"type:text"`
 	ReturnImages  string `json:"return_images" gorm:"type:text"`
+	
+	HasOBDData    bool   `json:"has_obd_data" gorm:"default:false"`
+	OBDTrackerID  *uint  `json:"obd_tracker_id"`
 	
 	Notes         string `json:"notes" gorm:"type:text"`
 }

@@ -7,7 +7,7 @@ import (
 
 type Availability struct {
 	gorm.Model
-	VehicleID     uint      `json:"vehicle_id"`
+	VehicleID     uint      `json:"vehicle_id" gorm:"not null"`
 	Vehicle       Vehicle   `json:"vehicle" gorm:"foreignKey:VehicleID"`
 	
 	AvailableFrom time.Time `json:"available_from"`

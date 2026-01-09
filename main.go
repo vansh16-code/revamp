@@ -18,6 +18,8 @@ func main(){
 		&models.Vehicle{},
 		&models.Availability{},
 		&models.Booking{},
+		&models.OBDTracker{},
+		&models.OBDReading{},
 	)
 
 	r := gin.Default()
