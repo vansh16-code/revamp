@@ -58,6 +58,12 @@ func CreateVehicle(c *gin.Context) {
 		return
 	}
 
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
 	var req CreateVehicleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -65,7 +71,7 @@ func CreateVehicle(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := config.DB.First(&user, userID).Error; err != nil {
+	if err := config.DB.First(&user, uid).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -82,7 +88,7 @@ func CreateVehicle(c *gin.Context) {
 	}
 
 	vehicle := models.Vehicle{
-		OwnerID:         userID.(uint),
+		OwnerID:         uid,
 		VehicleType:     req.VehicleType,
 		Brand:           req.Brand,
 		VehicleModel:    req.VehicleModel,
@@ -196,13 +202,19 @@ func UpdateVehicle(c *gin.Context) {
 		return
 	}
 
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
 	var vehicle models.Vehicle
 	if err := config.DB.First(&vehicle, vehicleID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vehicle not found"})
 		return
 	}
 
-	if vehicle.OwnerID != userID.(uint) {
+	if vehicle.OwnerID != uid {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't own this vehicle"})
 		return
 	}
@@ -274,13 +286,19 @@ func DeleteVehicle(c *gin.Context) {
 		return
 	}
 
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
 	var vehicle models.Vehicle
 	if err := config.DB.First(&vehicle, vehicleID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vehicle not found"})
 		return
 	}
 
-	if vehicle.OwnerID != userID.(uint) {
+	if vehicle.OwnerID != uid {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't own this vehicle"})
 		return
 	}
@@ -304,7 +322,7 @@ func DeleteVehicle(c *gin.Context) {
 	}
 
 	var user models.User
-	config.DB.First(&user, userID)
+	config.DB.First(&user, uid)
 	if user.TotalVehicles > 0 {
 		config.DB.Model(&user).Update("total_vehicles", user.TotalVehicles-1)
 	}
@@ -321,8 +339,14 @@ func GetMyVehicles(c *gin.Context) {
 		return
 	}
 
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
 	var vehicles []models.Vehicle
-	if err := config.DB.Where("owner_id = ? AND is_active = ?", userID, true).
+	if err := config.DB.Where("owner_id = ? AND is_active = ?", uid, true).
 		Find(&vehicles).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch vehicles"})
 		return

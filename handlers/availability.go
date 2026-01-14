@@ -33,13 +33,19 @@ func SetAvailability(c *gin.Context) {
 		return
 	}
 
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
 	var vehicle models.Vehicle
 	if err := config.DB.First(&vehicle, vehicleID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vehicle not found"})
 		return
 	}
 
-	if vehicle.OwnerID != userID.(uint) {
+	if vehicle.OwnerID != uid {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't own this vehicle"})
 		return
 	}
@@ -154,13 +160,19 @@ func UpdateAvailability(c *gin.Context) {
 		return
 	}
 
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
 	var availability models.Availability
 	if err := config.DB.Preload("Vehicle").First(&availability, availabilityID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Availability not found"})
 		return
 	}
 
-	if availability.Vehicle.OwnerID != userID.(uint) {
+	if availability.Vehicle.OwnerID != uid {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't own this vehicle"})
 		return
 	}
@@ -173,11 +185,15 @@ func UpdateAvailability(c *gin.Context) {
 
 	updates := make(map[string]interface{})
 
+	effectiveFrom := availability.AvailableFrom
+	effectiveTo := availability.AvailableTo
+
 	if req.AvailableFrom != nil {
 		if req.AvailableFrom.Before(time.Now()) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot set availability in the past"})
 			return
 		}
+		effectiveFrom = *req.AvailableFrom
 		updates["available_from"] = *req.AvailableFrom
 	}
 
@@ -186,33 +202,32 @@ func UpdateAvailability(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot set availability in the past"})
 			return
 		}
+		effectiveTo = *req.AvailableTo
 		updates["available_to"] = *req.AvailableTo
 	}
 
-	if req.AvailableFrom != nil && req.AvailableTo != nil {
-		if !req.AvailableFrom.Before(*req.AvailableTo) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "available_from must be before available_to"})
-			return
-		}
+	if !effectiveFrom.Before(effectiveTo) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "available_from must be before available_to"})
+		return
+	}
 
-		var conflictingBookings int64
-		result := config.DB.Model(&models.Booking{}).
-			Where("vehicle_id = ? AND status IN ? AND start_time <= ? AND end_time >= ?",
-				availability.VehicleID,
-				[]string{models.BookingStatusConfirmed, models.BookingStatusOngoing},
-				*req.AvailableTo,
-				*req.AvailableFrom,
-			).Count(&conflictingBookings)
+	var conflictingBookings int64
+	result := config.DB.Model(&models.Booking{}).
+		Where("vehicle_id = ? AND status IN ? AND start_time <= ? AND end_time >= ?",
+			availability.VehicleID,
+			[]string{models.BookingStatusConfirmed, models.BookingStatusOngoing},
+			effectiveTo,
+			effectiveFrom,
+		).Count(&conflictingBookings)
 
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for booking conflicts"})
-			return
-		}
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for booking conflicts"})
+		return
+	}
 
-		if conflictingBookings > 0 {
-			c.JSON(http.StatusConflict, gin.H{"error": "Cannot update: vehicle has confirmed bookings during this time"})
-			return
-		}
+	if conflictingBookings > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "Cannot update: vehicle has confirmed bookings during this time"})
+		return
 	}
 
 	if req.Status != nil {
@@ -245,7 +260,11 @@ func UpdateAvailability(c *gin.Context) {
 		return
 	}
 
-	config.DB.Preload("Vehicle").First(&availability, availabilityID)
+	result := config.DB.Preload("Vehicle").First(&availability, availabilityID)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated availability"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Availability updated successfully",
@@ -261,13 +280,19 @@ func DeleteAvailability(c *gin.Context) {
 		return
 	}
 
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
 	var availability models.Availability
 	if err := config.DB.Preload("Vehicle").First(&availability, availabilityID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Availability not found"})
 		return
 	}
 
-	if availability.Vehicle.OwnerID != userID.(uint) {
+	if availability.Vehicle.OwnerID != uid {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't own this vehicle"})
 		return
 	}
