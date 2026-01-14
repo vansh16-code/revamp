@@ -61,7 +61,7 @@ func SetAvailability(c *gin.Context) {
 	}
 
 	var overlappingBookings int64
-	config.DB.Model(&models.Booking{}).
+	result := config.DB.Model(&models.Booking{}).
 		Where("vehicle_id = ? AND status IN ? AND ((start_time BETWEEN ? AND ?) OR (end_time BETWEEN ? AND ?) OR (start_time <= ? AND end_time >= ?))",
 			vehicleID,
 			[]string{models.BookingStatusConfirmed, models.BookingStatusOngoing},
@@ -69,6 +69,11 @@ func SetAvailability(c *gin.Context) {
 			req.AvailableFrom, req.AvailableTo,
 			req.AvailableFrom, req.AvailableTo,
 		).Count(&overlappingBookings)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for overlapping bookings"})
+		return
+	}
 
 	if overlappingBookings > 0 {
 		c.JSON(http.StatusConflict, gin.H{"error": "Vehicle has confirmed bookings during this time"})
@@ -177,7 +182,37 @@ func UpdateAvailability(c *gin.Context) {
 	}
 
 	if req.AvailableTo != nil {
+		if req.AvailableTo.Before(time.Now()) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot set availability in the past"})
+			return
+		}
 		updates["available_to"] = *req.AvailableTo
+	}
+
+	if req.AvailableFrom != nil && req.AvailableTo != nil {
+		if !req.AvailableFrom.Before(*req.AvailableTo) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "available_from must be before available_to"})
+			return
+		}
+
+		var conflictingBookings int64
+		result := config.DB.Model(&models.Booking{}).
+			Where("vehicle_id = ? AND status IN ? AND start_time <= ? AND end_time >= ?",
+				availability.VehicleID,
+				[]string{models.BookingStatusConfirmed, models.BookingStatusOngoing},
+				*req.AvailableTo,
+				*req.AvailableFrom,
+			).Count(&conflictingBookings)
+
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for booking conflicts"})
+			return
+		}
+
+		if conflictingBookings > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "Cannot update: vehicle has confirmed bookings during this time"})
+			return
+		}
 	}
 
 	if req.Status != nil {
@@ -210,7 +245,7 @@ func UpdateAvailability(c *gin.Context) {
 		return
 	}
 
-	config.DB.First(&availability, availabilityID)
+	config.DB.Preload("Vehicle").First(&availability, availabilityID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Availability updated successfully",
@@ -238,13 +273,18 @@ func DeleteAvailability(c *gin.Context) {
 	}
 
 	var activeBookings int64
-	config.DB.Model(&models.Booking{}).
-		Where("vehicle_id = ? AND status IN ? AND start_time BETWEEN ? AND ?",
+	result := config.DB.Model(&models.Booking{}).
+		Where("vehicle_id = ? AND status IN ? AND start_time <= ? AND end_time >= ?",
 			availability.VehicleID,
 			[]string{models.BookingStatusConfirmed, models.BookingStatusOngoing},
-			availability.AvailableFrom,
 			availability.AvailableTo,
+			availability.AvailableFrom,
 		).Count(&activeBookings)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for active bookings"})
+		return
+	}
 
 	if activeBookings > 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete availability with active bookings"})
@@ -308,13 +348,18 @@ func CheckAvailability(c *gin.Context) {
 	}
 
 	var availabilitySlots int64
-	config.DB.Model(&models.Availability{}).
+	result := config.DB.Model(&models.Availability{}).
 		Where("vehicle_id = ? AND status = ? AND available_from <= ? AND available_to >= ?",
 			vehicleID,
 			models.AvailabilityStatusAvailable,
 			startTime,
 			endTime,
 		).Count(&availabilitySlots)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check availability slots"})
+		return
+	}
 
 	if availabilitySlots == 0 {
 		c.JSON(http.StatusOK, gin.H{
@@ -325,14 +370,18 @@ func CheckAvailability(c *gin.Context) {
 	}
 
 	var conflictingBookings int64
-	config.DB.Model(&models.Booking{}).
-		Where("vehicle_id = ? AND status IN ? AND ((start_time BETWEEN ? AND ?) OR (end_time BETWEEN ? AND ?) OR (start_time <= ? AND end_time >= ?))",
+	result = config.DB.Model(&models.Booking{}).
+		Where("vehicle_id = ? AND status IN ? AND start_time <= ? AND end_time >= ?",
 			vehicleID,
 			[]string{models.BookingStatusConfirmed, models.BookingStatusOngoing},
-			startTime, endTime,
-			startTime, endTime,
-			startTime, endTime,
+			endTime,
+			startTime,
 		).Count(&conflictingBookings)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for booking conflicts"})
+		return
+	}
 
 	if conflictingBookings > 0 {
 		c.JSON(http.StatusOK, gin.H{
