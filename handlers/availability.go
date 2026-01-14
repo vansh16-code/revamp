@@ -260,7 +260,7 @@ func UpdateAvailability(c *gin.Context) {
 		return
 	}
 
-	result := config.DB.Preload("Vehicle").First(&availability, availabilityID)
+	result = config.DB.Preload("Vehicle").First(&availability, availabilityID)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated availability"})
 		return
