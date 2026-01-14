@@ -23,8 +23,14 @@ func Register(r *gin.Engine) {
 		protected.GET("/my-vehicles", handlers.GetMyVehicles)
 		protected.PUT("/vehicles/:id", handlers.UpdateVehicle)
 		protected.DELETE("/vehicles/:id", handlers.DeleteVehicle)
+
+		protected.POST("/vehicles/:id/availability", handlers.SetAvailability)
+		protected.PUT("/availability/:id", handlers.UpdateAvailability)
+		protected.DELETE("/availability/:id", handlers.DeleteAvailability)
 	}
 
 	api.GET("/vehicles", handlers.GetVehicles)
 	api.GET("/vehicles/:id", handlers.GetVehicleByID)
+	api.GET("/vehicles/:id/availability", handlers.GetAvailability)
+	api.GET("/availability/check", handlers.CheckAvailability)
 }
