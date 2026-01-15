@@ -146,7 +146,11 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 
-	config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, booking.ID)
+	result := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, booking.ID)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking created but failed to load details"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Booking created successfully",
@@ -261,7 +265,11 @@ func ConfirmBooking(c *gin.Context) {
 		return
 	}
 
-	config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID)
+	result := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking confirmed but failed to load details"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Booking confirmed successfully",
@@ -314,7 +322,11 @@ func CancelBooking(c *gin.Context) {
 		return
 	}
 
-	config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID)
+	result := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking cancelled but failed to load details"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Booking cancelled successfully",

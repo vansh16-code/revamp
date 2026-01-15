@@ -30,11 +30,11 @@ func Register(r *gin.Engine) {
 
 		protected.POST("/bookings", handlers.CreateBooking)
 		protected.GET("/bookings", handlers.GetBookings)
+		protected.GET("/bookings/active", handlers.GetActiveBooking)
+		protected.GET("/bookings/history", handlers.GetBookingHistory)
 		protected.GET("/bookings/:id", handlers.GetBookingByID)
 		protected.POST("/bookings/:id/confirm", handlers.ConfirmBooking)
 		protected.POST("/bookings/:id/cancel", handlers.CancelBooking)
-		protected.GET("/bookings/active", handlers.GetActiveBooking)
-		protected.GET("/bookings/history", handlers.GetBookingHistory)
 	}
 
 	api.GET("/vehicles", handlers.GetVehicles)
