@@ -35,6 +35,10 @@ func Register(r *gin.Engine) {
 		protected.GET("/bookings/:id", handlers.GetBookingByID)
 		protected.POST("/bookings/:id/confirm", handlers.ConfirmBooking)
 		protected.POST("/bookings/:id/cancel", handlers.CancelBooking)
+		protected.POST("/bookings/:id/pickup/generate-otp", handlers.GeneratePickupOTP)
+		protected.POST("/bookings/:id/pickup/verify-otp", handlers.VerifyPickupOTP)
+		protected.POST("/bookings/:id/return/generate-otp", handlers.GenerateReturnOTP)
+		protected.POST("/bookings/:id/return/verify-otp", handlers.VerifyReturnOTP)
 	}
 
 	api.GET("/vehicles", handlers.GetVehicles)
