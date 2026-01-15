@@ -393,8 +393,6 @@ func GetBookingHistory(c *gin.Context) {
 		"bookings": bookings,
 	})
 }
-<<<<<<< Updated upstream
-=======
 
 
 type GeneratePickupOTPRequest struct {
@@ -707,4 +705,3 @@ func VerifyReturnOTP(c *gin.Context) {
 		},
 	})
 }
->>>>>>> Stashed changes
