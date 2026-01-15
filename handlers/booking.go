@@ -301,17 +301,14 @@ func CancelBooking(c *gin.Context) {
 		return
 	}
 
-	if booking.Status == models.BookingStatusOngoing {
+	switch booking.Status {
+	case models.BookingStatusOngoing:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot cancel ongoing booking"})
 		return
-	}
-
-	if booking.Status == models.BookingStatusCompleted {
+	case models.BookingStatusCompleted:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot cancel completed booking"})
 		return
-	}
-
-	if booking.Status == models.BookingStatusCancelled {
+	case models.BookingStatusCancelled:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Booking is already cancelled"})
 		return
 	}
