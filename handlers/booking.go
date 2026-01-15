@@ -146,7 +146,7 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 
-	result := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, booking.ID)
+	result = config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, booking.ID)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking created but failed to load details"})
 		return
@@ -265,8 +265,7 @@ func ConfirmBooking(c *gin.Context) {
 		return
 	}
 
-	result := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID)
-	if result.Error != nil {
+	if err := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking confirmed but failed to load details"})
 		return
 	}
@@ -322,8 +321,7 @@ func CancelBooking(c *gin.Context) {
 		return
 	}
 
-	result := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID)
-	if result.Error != nil {
+	if err := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking cancelled but failed to load details"})
 		return
 	}
@@ -395,3 +393,318 @@ func GetBookingHistory(c *gin.Context) {
 		"bookings": bookings,
 	})
 }
+<<<<<<< Updated upstream
+=======
+
+
+type GeneratePickupOTPRequest struct {
+	OdometerStart         int    `json:"odometer_start" binding:"required"`
+	FuelLevelStartPercent int    `json:"fuel_level_start_percent" binding:"required"`
+	DamageReportStart     string `json:"damage_report_start"`
+}
+
+type VerifyPickupOTPRequest struct {
+	OTP string `json:"otp" binding:"required"`
+}
+
+type GenerateReturnOTPRequest struct {
+	OdometerEnd         int    `json:"odometer_end" binding:"required"`
+	FuelLevelEndPercent int    `json:"fuel_level_end_percent" binding:"required"`
+	DamageReportEnd     string `json:"damage_report_end"`
+}
+
+type VerifyReturnOTPRequest struct {
+	OTP string `json:"otp" binding:"required"`
+}
+
+func GeneratePickupOTP(c *gin.Context) {
+	bookingID := c.Param("id")
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
+	var booking models.Booking
+	if err := config.DB.First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+
+	if booking.OwnerID != uid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only the vehicle owner can generate pickup OTP"})
+		return
+	}
+
+	if booking.Status != models.BookingStatusConfirmed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Booking must be confirmed to generate pickup OTP"})
+		return
+	}
+
+	var req GeneratePickupOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.FuelLevelStartPercent < 0 || req.FuelLevelStartPercent > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Fuel level must be between 0 and 100"})
+		return
+	}
+
+	otp, err := utils.StoreOTP(bookingID, "pickup")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate OTP"})
+		return
+	}
+
+	updates := map[string]interface{}{
+		"odometer_start_km":        req.OdometerStart,
+		"fuel_level_start_percent": req.FuelLevelStartPercent,
+		"damage_report_start":      req.DamageReportStart,
+		"pickup_otp":               otp,
+		"pickup_time":              time.Now(),
+	}
+
+	if err := config.DB.Model(&booking).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update booking"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":            "Pickup OTP generated successfully",
+		"otp":                otp,
+		"expires_in_minutes": 10,
+	})
+}
+
+func VerifyPickupOTP(c *gin.Context) {
+	bookingID := c.Param("id")
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
+	var booking models.Booking
+	if err := config.DB.First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+
+	if booking.RenterID != uid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only the renter can verify pickup OTP"})
+		return
+	}
+
+	if booking.Status != models.BookingStatusConfirmed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Booking must be confirmed"})
+		return
+	}
+
+	var req VerifyPickupOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !utils.VerifyOTP(bookingID, "pickup", req.OTP) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired OTP"})
+		return
+	}
+
+	if err := config.DB.Model(&booking).Update("status", models.BookingStatusOngoing).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start booking"})
+		return
+	}
+
+	if err := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking started but failed to load details"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Pickup verified successfully. Ride started!",
+		"booking": booking,
+	})
+}
+
+func GenerateReturnOTP(c *gin.Context) {
+	bookingID := c.Param("id")
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
+	var booking models.Booking
+	if err := config.DB.Preload("Vehicle").First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+
+	if booking.OwnerID != uid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only the vehicle owner can generate return OTP"})
+		return
+	}
+
+	if booking.Status != models.BookingStatusOngoing {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Booking must be ongoing to generate return OTP"})
+		return
+	}
+
+	var req GenerateReturnOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.FuelLevelEndPercent < 0 || req.FuelLevelEndPercent > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Fuel level must be between 0 and 100"})
+		return
+	}
+
+	if req.OdometerEnd < booking.OdometerStartKm {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "End odometer cannot be less than start odometer"})
+		return
+	}
+
+	otp, err := utils.StoreOTP(bookingID, "return")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate OTP"})
+		return
+	}
+
+	actualDistanceKm := float64(req.OdometerEnd - booking.OdometerStartKm)
+	
+	fuelConsumed := 0.0
+	if booking.Vehicle.Mileage > 0 {
+		fuelConsumed = actualDistanceKm / booking.Vehicle.Mileage
+	}
+
+	updates := map[string]interface{}{
+		"odometer_end_km":        req.OdometerEnd,
+		"actual_distance_km":     actualDistanceKm,
+		"fuel_level_end_percent": req.FuelLevelEndPercent,
+		"fuel_consumed_liters":   fuelConsumed,
+		"damage_report_end":      req.DamageReportEnd,
+		"return_otp":             otp,
+		"return_time":            time.Now(),
+	}
+
+	if err := config.DB.Model(&booking).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update booking"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":            "Return OTP generated successfully",
+		"otp":                otp,
+		"expires_in_minutes": 10,
+		"trip_summary": gin.H{
+			"distance_km":     actualDistanceKm,
+			"fuel_consumed_l": fuelConsumed,
+		},
+	})
+}
+
+func VerifyReturnOTP(c *gin.Context) {
+	bookingID := c.Param("id")
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	uid, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in context"})
+		return
+	}
+
+	var booking models.Booking
+	if err := config.DB.Preload("Vehicle").First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+
+	if booking.RenterID != uid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only the renter can verify return OTP"})
+		return
+	}
+
+	if booking.Status != models.BookingStatusOngoing {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Booking must be ongoing"})
+		return
+	}
+
+	var req VerifyReturnOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !utils.VerifyOTP(bookingID, "return", req.OTP) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired OTP"})
+		return
+	}
+
+	finalPrice := utils.CalculateFinalPrice(&booking)
+
+	updates := map[string]interface{}{
+		"status":      models.BookingStatusCompleted,
+		"final_price": finalPrice,
+	}
+
+	if err := config.DB.Model(&booking).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete booking"})
+		return
+	}
+
+	var vehicle models.Vehicle
+	config.DB.First(&vehicle, booking.VehicleID)
+	config.DB.Model(&vehicle).Updates(map[string]interface{}{
+		"total_bookings": vehicle.TotalBookings + 1,
+		"total_km_driven": vehicle.TotalKmDriven + int(booking.ActualDistanceKm),
+	})
+
+	var renter models.User
+	config.DB.First(&renter, booking.RenterID)
+	config.DB.Model(&renter).Update("total_rentals", renter.TotalRentals+1)
+
+	if err := config.DB.Preload("Vehicle").Preload("Owner").Preload("Renter").First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Booking completed but failed to load details"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Return verified successfully. Ride completed!",
+		"booking": booking,
+		"payment_summary": gin.H{
+			"estimated_price":  booking.EstimatedPrice,
+			"final_price":      booking.FinalPrice,
+			"security_deposit": booking.SecurityDeposit,
+			"distance_km":      booking.ActualDistanceKm,
+			"fuel_consumed_l":  booking.FuelConsumedLiters,
+		},
+	})
+}
+>>>>>>> Stashed changes
