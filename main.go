@@ -20,6 +20,7 @@ func main(){
 		&models.Booking{},
 		&models.OBDTracker{},
 		&models.OBDReading{},
+		&models.Document{},
 	)
 
 	r := gin.Default()

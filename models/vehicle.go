@@ -32,9 +32,20 @@ type Vehicle struct {
 	SeatingCapacity int   `json:"seating_capacity"`
 	
 	RCDocument      string     `json:"rc_document"`
+	RCNumber        string     `json:"rc_number"`
+	RCVerified      bool       `json:"rc_verified" gorm:"default:false"`
+	
 	Insurance       string     `json:"insurance"`
+	InsuranceNumber string     `json:"insurance_number"`
 	InsuranceExpiry *time.Time `json:"insurance_expiry,omitempty"`
+	InsuranceVerified bool     `json:"insurance_verified" gorm:"default:false"`
+	
+	PUCDocument     string     `json:"puc_document"`
+	PUCExpiry       *time.Time `json:"puc_expiry,omitempty"`
+	PUCVerified     bool       `json:"puc_verified" gorm:"default:false"`
+	
 	IsVerified      bool       `json:"is_verified" gorm:"default:false"`
+	VerifiedAt      *time.Time `json:"verified_at,omitempty"`
 	
 	Location      string  `json:"location"`
 	Latitude      float64 `json:"latitude"`

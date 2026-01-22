@@ -35,7 +35,12 @@ type User struct {
 	DrivingLicense string     `json:"driving_license"`
 	LicenseNumber  string     `json:"license_number"`
 	LicenseExpiry  *time.Time `json:"license_expiry,omitempty"`
+	LicenseVerified bool      `json:"license_verified" gorm:"default:false"`
+	
 	AadharCard     string     `json:"aadhar_card"`
+	AadharVerified bool       `json:"aadhar_verified" gorm:"default:false"`
+	
+	StudentIDVerified bool    `json:"student_id_verified" gorm:"default:false"`
 	
 	IsVerified    bool       `json:"is_verified" gorm:"default:false"`
 	VerifiedAt    *time.Time `json:"verified_at,omitempty"`
