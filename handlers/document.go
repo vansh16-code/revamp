@@ -53,6 +53,18 @@ func UploadDocument(c *gin.Context) {
 		return
 	}
 
+	// Vehicle documents require vehicle_id
+	vehicleDocTypes := map[string]bool{
+		models.DocumentTypeRC:        true,
+		models.DocumentTypeInsurance: true,
+		models.DocumentTypePUC:       true,
+	}
+
+	if vehicleDocTypes[req.DocumentType] && req.VehicleID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "vehicle_id is required for RC/Insurance/PUC"})
+		return
+	}
+
 	if req.VehicleID != nil {
 		var vehicle models.Vehicle
 		if err := config.DB.First(&vehicle, *req.VehicleID).Error; err != nil {
@@ -78,16 +90,20 @@ func UploadDocument(c *gin.Context) {
 
 	if req.IssueDate != "" {
 		issueDate, err := time.Parse("2006-01-02", req.IssueDate)
-		if err == nil {
-			document.IssueDate = &issueDate
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid issue_date format. Use YYYY-MM-DD"})
+			return
 		}
+		document.IssueDate = &issueDate
 	}
 
 	if req.ExpiryDate != "" {
 		expiryDate, err := time.Parse("2006-01-02", req.ExpiryDate)
-		if err == nil {
-			document.ExpiryDate = &expiryDate
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid expiry_date format. Use YYYY-MM-DD"})
+			return
 		}
+		document.ExpiryDate = &expiryDate
 	}
 
 	if err := config.DB.Create(&document).Error; err != nil {
